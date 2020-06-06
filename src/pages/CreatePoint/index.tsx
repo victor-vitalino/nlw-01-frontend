@@ -1,11 +1,12 @@
-import React, { useEffect, useState, ChangeEvent , FormEvent} from "react";
-import { Link, useHistory} from "react-router-dom";
+import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import { Link, useHistory } from "react-router-dom";
 import axios from "axios";
 import { FiArrowLeft } from "react-icons/fi";
+import Dropzone from "../../components/Dropzone";
 
 // leaflet
 import { Map, TileLayer, Marker } from "react-leaflet";
-import {LeafletMouseEvent} from 'leaflet'
+import { LeafletMouseEvent } from "leaflet";
 
 // local data;
 import "./styles.css";
@@ -28,31 +29,37 @@ const CreatePoint = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [ufs, setUfs] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File>();
 
   const [formData, setFormData] = useState({
-    name:'',
-    email:'',
-    whatsapp:''
+    name: "",
+    email: "",
+    whatsapp: "",
   });
 
   const [selectedUf, setSelectedUf] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
 
-  const [selectedPosition, setSelectedPosition] = useState<[number, number]>([0,0])
-  const [initialPosition, setInitialPosition] = useState<[number, number]>([0,0])
+  const [selectedPosition, setSelectedPosition] = useState<[number, number]>([
+    0,
+    0,
+  ]);
+  const [initialPosition, setInitialPosition] = useState<[number, number]>([
+    0,
+    0,
+  ]);
 
-  const [selectedItems, setSelectedItems] = useState<number[]>([])
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
   const history = useHistory();
 
   // pega a localização atual
-  useEffect(()=>{
-    navigator.geolocation.getCurrentPosition(position =>{
-      
-      const {latitude, longitude} = position.coords;
-      setInitialPosition([latitude,longitude])
-    })
-  },[])
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition((position) => {
+      const { latitude, longitude } = position.coords;
+      setInitialPosition([latitude, longitude]);
+    });
+  }, []);
   /** Buscando itens de coleta da api */
   useEffect(() => {
     api.get("items").then((response) => {
@@ -92,66 +99,69 @@ const CreatePoint = () => {
     const uf = event.target.value;
     setSelectedUf(uf);
   }
-  /** City selecionada */ 
+  /** City selecionada */
+
   function handleSelectCity(event: ChangeEvent<HTMLSelectElement>) {
     const city = event.target.value;
     setSelectedCity(city);
   }
   /** Posição selecionada no mapa  */
-function handleMapClick(event: LeafletMouseEvent){  
-  setSelectedPosition([
-    event.latlng.lat,
-    event.latlng.lng
-  ])
-
-}
-
-// inputs de dados da empresa
-function handleInputChange(event: ChangeEvent<HTMLInputElement>){
- const {name, value} = event.target;
-  setFormData({
-    ...formData,
-    [name]:value
-  })
-}
-
-// itens de coleta selecionados
-function handleSelectItem(id: number){
-  const alreadySelected = selectedItems.findIndex(item => item === id);
-
-  if(alreadySelected >= 0){
-    const filtered = selectedItems.filter(item => item !== id);
-    setSelectedItems(filtered);
-  }else{
-
-    setSelectedItems([...selectedItems ,id]);
+  function handleMapClick(event: LeafletMouseEvent) {
+    setSelectedPosition([event.latlng.lat, event.latlng.lng]);
   }
 
-}
-
-async function handleSubmit(event: FormEvent){
-  event.preventDefault();
-  const {name, email,whatsapp} = formData;
-  const uf = selectedUf;
-  const city = selectedCity;
-  const [latitude, longitude] = selectedPosition;
-  
-  const data = {
-    name,
-    email,
-    whatsapp,
-    uf,
-    city,
-    latitude,
-    longitude,
-    items:selectedItems
+  // inputs de dados da empresa
+  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
+    const { name, value } = event.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
   }
 
-  console.log(data)
-  await api.post('points',data)
-  history.push('/success')
- 
-}
+  // itens de coleta selecionados
+  function handleSelectItem(id: number) {
+    const alreadySelected = selectedItems.findIndex((item) => item === id);
+
+    if (alreadySelected >= 0) {
+      const filtered = selectedItems.filter((item) => item !== id);
+      setSelectedItems(filtered);
+    } else {
+      setSelectedItems([...selectedItems, id]);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const { name, email, whatsapp } = formData;
+    const uf = selectedUf;
+    const city = selectedCity;
+    const [latitude, longitude] = selectedPosition;
+    const items = selectedItems;
+
+    const data = new FormData();
+
+    data.append("name", name);
+    data.append("email", email);
+    data.append("whatsapp", whatsapp);
+    data.append("uf", uf);
+    data.append("city", city);
+    data.append("latitude", String(latitude));
+    data.append("longitude", String(longitude));
+    data.append("items", items.join(","));
+    if (selectedFile) {
+      data.append("image", selectedFile);
+    }
+
+    try {
+      await api.post("points", data);
+      history.push("/success");
+    } catch (error) {
+      alert('Preencha todos os campos'); 
+      // todo: exibir erro circulando campo de vermelho
+    }
+
+  }
 
   return (
     <div id="page-create-point">
@@ -162,11 +172,11 @@ async function handleSubmit(event: FormEvent){
           Voltar para home
         </Link>
       </header>
-      {/** Formulario */}
       <form onSubmit={handleSubmit}>
         <h1>
           Cadastro do <br /> ponto de coleta
         </h1>
+        <Dropzone onFileUploaded={setSelectedFile} />
 
         <fieldset>
           <legend>
@@ -175,17 +185,32 @@ async function handleSubmit(event: FormEvent){
 
           <div className="field">
             <label htmlFor="name">Nome da entidade</label>
-            <input type="text" name="name" id="name" onChange={handleInputChange}/>
+            <input
+              type="text"
+              name="name"
+              id="name"
+              onChange={handleInputChange}
+            />
           </div>
 
           <div className="field-group">
             <div className="field">
               <label htmlFor="email">E-mail</label>
-              <input type="email" name="email" id="email" onChange={handleInputChange}/>
+              <input
+                type="email"
+                name="email"
+                id="email"
+                onChange={handleInputChange}
+              />
             </div>
             <div className="field">
               <label htmlFor="whatsapp">Whatsapp</label>
-              <input type="text" name="whatsapp" id="whatsapp" onChange={handleInputChange} />
+              <input
+                type="text"
+                name="whatsapp"
+                id="whatsapp"
+                onChange={handleInputChange}
+              />
             </div>
           </div>
         </fieldset>
@@ -196,21 +221,23 @@ async function handleSubmit(event: FormEvent){
             <span>Selecione o endereço no mapa</span>
           </legend>
           {/** Mapa formulario */}
-          <Map center={initialPosition} zoom={20} onClick={handleMapClick}>
-            <TileLayer
-              attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={selectedPosition} />
-          </Map>
+          {initialPosition[0] !== 0 && (
+            <Map center={initialPosition} zoom={16} onClick={handleMapClick}>
+              <TileLayer
+                attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <Marker position={selectedPosition} />
+            </Map>
+          )}
 
           <div className="field-group">
             <div className="field">
               <label htmlFor="uf">Estado(UF)</label>
-              <select 
-                name="uf" 
-                id="uf" 
-                value={selectedUf} 
+              <select
+                name="uf"
+                id="uf"
+                value={selectedUf}
                 onChange={handleSelectUf}
               >
                 <option value="0">Selecione uma UF</option>
@@ -224,10 +251,10 @@ async function handleSubmit(event: FormEvent){
 
             <div className="field">
               <label htmlFor="city">Cidade</label>
-              <select 
-                name="city" 
-                id="city" 
-                value={selectedCity} 
+              <select
+                name="city"
+                id="city"
+                value={selectedCity}
                 onChange={handleSelectCity}
               >
                 <option value="0">Selecione uma cidade</option>
@@ -248,11 +275,10 @@ async function handleSubmit(event: FormEvent){
           </legend>
           <ul className="items-grid">
             {items.map((item) => (
-              <li 
-                key={item.id} 
-                onClick={() => handleSelectItem(item.id)} 
-                className={selectedItems.includes(item.id)? 'selected':''}
-                
+              <li
+                key={item.id}
+                onClick={() => handleSelectItem(item.id)}
+                className={selectedItems.includes(item.id) ? "selected" : ""}
               >
                 <img src={item.image_url} alt={item.title} />
                 <span>{item.title}</span>
