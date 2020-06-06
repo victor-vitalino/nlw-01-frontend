@@ -15,3 +15,5 @@
    - Usar ponto de marcação no mapa para marcar o ponto de coleta
    - Consome api do IBGE para retornar Estados e Municípios para serem selecionados
    - Adiciona imagem por meio de Drag and Drop
+   
+   ![Demo CountPages alpha](/nlw-web.gif)
